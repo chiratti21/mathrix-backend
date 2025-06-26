@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config(); 
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -6,21 +6,38 @@ const bcrypt = require('bcryptjs');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+
+const PORT = process.env.PORT || 5000; 
 
 // --- Middleware ---
-app.use(cors());
 app.use(express.json());
+
+const frontendUrl = process.env.FRONTEND_URL; 
+if (frontendUrl) {
+  app.use(cors({
+    origin: frontendUrl,
+    optionsSuccessStatus: 200
+  }));
+  console.log(`CORS enabled for origin: ${frontendUrl}`);
+} else {
+  app.use(cors()); 
+  console.warn("CORS is open to all origins as FRONTEND_URL is not set. This is not recommended for production.");
+}
+
 
 // --- MongoDB Connection ---
 const mongoURI = process.env.MONGO_URI;
 
-mongoose.connect(mongoURI)
-  .then(() => console.log('MongoDB connected successfully!'))
-  .catch(err => {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1); // Exit process with failure
-  });
+// ตรวจสอบว่า MONGO_URI ถูกกำหนดค่าแล้ว
+if (!mongoURI) {
+  console.error('MongoDB connection error: MONGO_URI is not defined in environment variables.');
+} else {
+  mongoose.connect(mongoURI)
+    .then(() => console.log('MongoDB connected successfully!'))
+    .catch(err => {
+      console.error('MongoDB connection error:', err.message);
+    });
+}
 
 // --- User Schema and Model ---
 const UserSchema = new mongoose.Schema({
@@ -59,6 +76,12 @@ const User = mongoose.model('User', UserSchema);
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
 
+  // ตรวจสอบว่าเชื่อมต่อ MongoDB สำเร็จก่อนทำอะไร
+  if (mongoose.connection.readyState !== 1) { // 1 = connected
+    console.error('MongoDB is not connected. Cannot process registration.');
+    return res.status(503).json({ msg: 'Database service unavailable. Please try again later.' });
+  }
+
   try {
     let user = await User.findOne({ username });
     if (user) {
@@ -71,11 +94,10 @@ app.post('/api/register', async (req, res) => {
     });
 
     await user.save();
-    res.status(201).json({ msg: 'User registered successfully!' }); // Send 201 for resource creation
+    res.status(201).json({ msg: 'User registered successfully!' });
 
   } catch (err) {
     console.error('Registration error:', err.message);
-    // Always send a JSON response
     if (err.code === 11000) { // Duplicate key error (for unique username)
       return res.status(400).json({ msg: 'Username already exists.' });
     }
@@ -88,6 +110,12 @@ app.post('/api/register', async (req, res) => {
 // @access  Public
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
+
+  // ตรวจสอบว่าเชื่อมต่อ MongoDB สำเร็จก่อนทำอะไร
+  if (mongoose.connection.readyState !== 1) { // 1 = connected
+    console.error('MongoDB is not connected. Cannot process login.');
+    return res.status(503).json({ msg: 'Database service unavailable. Please try again later.' });
+  }
 
   try {
     const user = await User.findOne({ username });
@@ -108,4 +136,4 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = app;
