@@ -12,14 +12,16 @@ const PORT = process.env.PORT || 5000;
 // --- Middleware ---
 app.use(express.json());
 
+
 const frontendUrl = process.env.FRONTEND_URL; 
 if (frontendUrl) {
   app.use(cors({
-    origin: frontendUrl,
+    origin: frontendUrl, // อนุญาตเฉพาะ Frontend URL ที่กำหนด
     optionsSuccessStatus: 200
   }));
   console.log(`CORS enabled for origin: ${frontendUrl}`);
 } else {
+ 
   app.use(cors()); 
   console.warn("CORS is open to all origins as FRONTEND_URL is not set. This is not recommended for production.");
 }
@@ -31,11 +33,13 @@ const mongoURI = process.env.MONGO_URI;
 // ตรวจสอบว่า MONGO_URI ถูกกำหนดค่าแล้ว
 if (!mongoURI) {
   console.error('MongoDB connection error: MONGO_URI is not defined in environment variables.');
+  
 } else {
   mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected successfully!'))
     .catch(err => {
       console.error('MongoDB connection error:', err.message);
+     
     });
 }
 
@@ -136,4 +140,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-module.exports = app;
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
